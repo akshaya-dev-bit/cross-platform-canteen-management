@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Food Stall - Canteen</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <a href="/" class="back">← Dashboard</a>
+
+    <h1>Food Stall</h1>
+
+    <div class="panel">
+
+        <h2>Live Orders</h2>
+
+        <div id="orders"></div>
+
+    </div>
+
+</div>
+
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+
+const socket = io();
+
+
+async function loadOrders() {
+
+    const response = await fetch("/api/orders");
+
+    const orders = await response.json();
+
+
+    document.getElementById("orders").innerHTML = orders
+
+        .map(order => `
+
+            <div class="order">
+
+                <div>
+
+                    <strong>
+                        Order #${order.id}
+                    </strong>
+
+                    — ${order.customer_name}
+
+                    <br>
+
+                    ${order.item} × ${order.quantity}
+
+                    — ₹${order.total.toFixed(2)}
+
+                    <br>
+
+                    <small>
+                        ${order.stall} | ${order.created_at}
+                    </small>
+
+                </div>
+
+
+                <div>
+
+                    <span class="status">
+                        ${order.status}
+                    </span>
+
+
+                    <select
+                        onchange="updateStatus(${order.id}, this.value)"
+                    >
+
+                        ${
+                            [
+                                "Pending",
+                                "Preparing",
+                                "Ready",
+                                "Completed"
+                            ]
+
+                            .map(status =>
+
+                                `<option
+                                    ${
+                                        status === order.status
+                                        ? "selected"
+                                        : ""
+                                    }
+                                >
+                                    ${status}
+                                </option>`
+
+                            )
+
+                            .join("")
+                        }
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        `)
+
+        .join("");
+
+}
+
+
+async function updateStatus(id, status) {
+
+    await fetch(`/api/orders/${id}`, {
+
+        method: "PUT",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            status: status
+        })
+
+    });
+
+
+    loadOrders();
+
+}
+
+
+socket.on("new_order", loadOrders);
+
+socket.on("order_updated", loadOrders);
+
+
+loadOrders();
+
+</script>
+
+</body>
+
+</html>

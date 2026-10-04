@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Admin - Canteen</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <a href="/" class="back">← Dashboard</a>
+
+    <h1>Admin / Inventory</h1>
+
+
+    <!-- Inventory Section -->
+    <div class="panel">
+
+        <h2>Inventory Management</h2>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Stall</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="inventoryBody"></tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- Orders Section -->
+    <div class="panel">
+
+        <h2>Recent Orders</h2>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Item</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody id="ordersBody"></tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+
+const socket = io();
+
+
+async function loadData() {
+
+    // Load inventory
+    const inventoryResponse =
+        await fetch("/api/inventory");
+
+    const inventory =
+        await inventoryResponse.json();
+
+
+    document.getElementById("inventoryBody").innerHTML =
+
+        inventory.map(item => `
+
+            <tr>
+
+                <td>${item.name}</td>
+
+                <td>
+                    ₹${item.price.toFixed(2)}
+                </td>
+
+                <td class="${item.stock <= 5 ? "low-stock" : ""}">
+                    ${item.stock}
+                </td>
+
+                <td>
+                    ${item.stall}
+                </td>
+
+                <td>
+
+                    <button
+                        onclick="restock(${item.id})"
+                    >
+                        Restock +10
+                    </button>
+
+                </td>
+
+            </tr>
+
+        `).join("");
+
+
+    // Load orders
+    const ordersResponse =
+        await fetch("/api/orders");
+
+    const orders =
+        await ordersResponse.json();
+
+
+    document.getElementById("ordersBody").innerHTML =
+
+        orders.map(order => `
+
+            <tr>
+
+                <td>
+                    #${order.id}
+                </td>
+
+                <td>
+                    ${order.customer_name}
+                </td>
+
+                <td>
+                    ${order.item}
+                </td>
+
+                <td>
+                    ₹${order.total.toFixed(2)}
+                </td>
+
+                <td>
+                    ${order.status}
+                </td>
+
+            </tr>
+
+        `).join("");
+
+}
+
+
+async function restock(id) {
+
+    await fetch(
+        `/api/inventory/${id}/restock`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                amount: 10
+            })
+        }
+    );
+
+
+    loadData();
+
+}
+
+
+socket.on(
+    "inventory_updated",
+    loadData
+);
+
+socket.on(
+    "new_order",
+    loadData
+);
+
+socket.on(
+    "order_updated",
+    loadData
+);
+
+
+loadData();
+
+</script>
+
+</body>
+
+</html>

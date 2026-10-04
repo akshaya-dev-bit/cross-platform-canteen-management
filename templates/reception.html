@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Reception - Canteen</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <a href="/" class="back">← Dashboard</a>
+
+    <h1>Reception / Billing</h1>
+
+    <div class="panel">
+
+        <form id="orderForm">
+
+            <label>Customer Name</label>
+
+            <input
+                id="customerName"
+                type="text"
+                placeholder="Enter customer name"
+                required
+            >
+
+            <label>Food Item</label>
+
+            <select id="item" required></select>
+
+            <label>Quantity</label>
+
+            <input
+                id="quantity"
+                type="number"
+                min="1"
+                value="1"
+                required
+            >
+
+            <button type="submit">
+                Create Order
+            </button>
+
+        </form>
+
+        <p id="message"></p>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>Available Items</h2>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Stall</th>
+                </tr>
+            </thead>
+
+            <tbody id="inventoryBody"></tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+
+const socket = io();
+
+
+async function loadInventory() {
+
+    const response = await fetch("/api/inventory");
+
+    const inventory = await response.json();
+
+
+    document.getElementById("item").innerHTML = inventory
+
+        .filter(item => item.stock > 0)
+
+        .map(item =>
+            `<option value="${item.name}">
+                ${item.name} - ₹${item.price} (${item.stock} available)
+            </option>`
+        )
+
+        .join("");
+
+
+    document.getElementById("inventoryBody").innerHTML = inventory
+
+        .map(item => `
+            <tr>
+                <td>${item.name}</td>
+
+                <td>₹${item.price.toFixed(2)}</td>
+
+                <td>${item.stock}</td>
+
+                <td>${item.stall}</td>
+            </tr>
+        `)
+
+        .join("");
+}
+
+
+document.getElementById("orderForm").addEventListener(
+    "submit",
+    async function(event) {
+
+        event.preventDefault();
+
+
+        const response = await fetch("/api/orders", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+
+                customer_name:
+                    document.getElementById("customerName").value,
+
+                item:
+                    document.getElementById("item").value,
+
+                quantity:
+                    Number(
+                        document.getElementById("quantity").value
+                    )
+
+            })
+
+        });
+
+
+        const data = await response.json();
+
+        const message =
+            document.getElementById("message");
+
+
+        if (response.ok) {
+
+            message.textContent =
+                `Order #${data.id} created. Total: ₹${data.total.toFixed(2)}`;
+
+            message.className = "success";
+
+            this.reset();
+
+            document.getElementById("quantity").value = 1;
+
+        } else {
+
+            message.textContent = data.error;
+
+            message.className = "error";
+
+        }
+
+
+        loadInventory();
+
+    }
+);
+
+
+socket.on("inventory_updated", loadInventory);
+
+
+loadInventory();
+
+</script>
+
+</body>
+</html>
